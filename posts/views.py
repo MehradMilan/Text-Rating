@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import ListAPIView
 from .pagination import CustomPagination
 from django.db.models import Avg
+from .kafka_producers import send_rating_event
 
 class PostList(ListAPIView):
     queryset = Post.objects.all()
@@ -47,7 +48,11 @@ class RatingView(APIView):
                 post=post,
                 defaults={'score': request.data.get('score')}
             )
+
+            send_rating_event(post.id, request.data.get('score'), user.id)
+
             update_average_rating(post.id)
+
             return Response({'message': 'Rating saved successfully'}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
