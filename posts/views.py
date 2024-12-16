@@ -5,12 +5,13 @@ from .models import Post, Rating
 from .serializers import PostSerializer, RatingSerializer, UserSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.generics import ListAPIView
+from .pagination import CustomPagination
 
-class PostList(APIView):
-    def get(self, request):
-        posts = Post.objects.all()
-        serializer = PostSerializer(posts, many=True)
-        return Response(serializer.data)
+class PostList(ListAPIView):
+    queryset = Post.objects.all()
+    serializer_class = PostSerializer
+    pagination_class = CustomPagination
 
 class RatingView(APIView):
     permission_classes = [IsAuthenticated]
