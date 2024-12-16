@@ -4,14 +4,30 @@ from rest_framework import status
 from .models import Post, Rating
 from .serializers import PostSerializer, RatingSerializer, UserSerializer
 from django.shortcuts import get_object_or_404
+from django.core.cache import cache
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import ListAPIView
 from .pagination import CustomPagination
+from django.db.models import Avg
 
 class PostList(ListAPIView):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
     pagination_class = CustomPagination
+
+    def get_queryset(self):
+        cached_posts = cache.get('posts')
+        if cached_posts:
+            return cached_posts
+
+        posts = Post.objects.all()
+        cache.set('posts', posts, timeout=300)
+        return posts
+    
+def update_average_rating(post_id):
+    ratings = Rating.objects.filter(post_id=post_id)
+    average_rating = ratings.aggregate(Avg('score'))['score__avg'] if ratings.exists() else 0
+    cache.set(f'post:{post_id}:avg_rating', average_rating, timeout=3600)
 
 class RatingView(APIView):
     permission_classes = [IsAuthenticated]
