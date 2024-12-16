@@ -64,3 +64,19 @@ class RegisterView(APIView):
             serializer.save()
             return Response({'message': 'User registered successfully'}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+class AnalyticsView(APIView):
+    def get(self, request):
+        most_rated = cache.client.get_client().zrevrange('most_rated_posts', 0, 4, withscores=True)
+
+        top_rated = []
+        for key in most_rated:
+            post_id = key[0].decode('utf-8').split(':')[1]
+            avg_rating = cache.get(f'post:{post_id}:avg_rating', 0)
+            top_rated.append({'post_id': post_id, 'average_rating': avg_rating})
+
+        return Response({
+            'most_rated': most_rated,
+            'top_rated': top_rated
+        })
