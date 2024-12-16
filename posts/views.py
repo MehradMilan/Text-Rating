@@ -24,6 +24,9 @@ class PostList(ListAPIView):
         cache.set('posts', posts, timeout=300)
         return posts
     
+    def get_serializer_context(self):
+        return {'request': self.request}
+    
 def update_average_rating(post_id):
     ratings = Rating.objects.filter(post_id=post_id)
     average_rating = ratings.aggregate(Avg('score'))['score__avg'] if ratings.exists() else 0
@@ -44,6 +47,7 @@ class RatingView(APIView):
                 post=post,
                 defaults={'score': request.data.get('score')}
             )
+            update_average_rating(post.id)
             return Response({'message': 'Rating saved successfully'}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
