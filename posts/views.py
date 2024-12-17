@@ -10,6 +10,8 @@ from rest_framework.generics import ListAPIView
 from .pagination import CustomPagination
 from django.db.models import Avg
 from .kafka_producers import send_rating_event
+import json
+import time
 
 class PostList(ListAPIView):
     queryset = Post.objects.all()
@@ -33,29 +35,61 @@ def update_average_rating(post_id):
     average_rating = ratings.aggregate(Avg('score'))['score__avg'] if ratings.exists() else 0
     cache.set(f'post:{post_id}:avg_rating', average_rating, timeout=3600)
 
+def check_for_anomalies(post_id):
+    redis_client = cache.client.get_client()
+
+    ratings = redis_client.zrangebyscore(f'post:{post_id}:rating_buffer', '-inf', '+inf')
+    if not ratings:
+        return
+
+    scores = [json.loads(rating)['score'] for rating in ratings]
+
+    score_count = {score: scores.count(score) for score in set(scores)}
+
+    total_ratings = len(scores)
+    for score, count in score_count.items():
+        if count / total_ratings > 0.6:
+            print(f"Anomaly detected: {count}/{total_ratings} ratings are {score}. Clearing buffer.")
+            redis_client.delete(f'post:{post_id}:rating_buffer')
+            return
+
+    print(f"No anomaly detected for post {post_id}.")
+
 class RatingView(APIView):
     permission_classes = [IsAuthenticated]
+
+    def add_rating_to_buffer(self, post_id, user_id, score):
+        redis_client = cache.client.get_client()
+        current_time = time.time()
+        rating_data = json.dumps({
+            "user_id": user_id,
+            "score": score,
+            "timestamp": current_time
+        })
+
+        redis_client.zadd(f'post:{post_id}:rating_buffer', {rating_data: current_time})
+        print(f"Rating added to buffer: Post {post_id}, User {user_id}, Score {score}")
+
+        buffer_size = redis_client.zcard(f'post:{post_id}:rating_buffer')
+        if buffer_size > 50:
+            print(f"Buffer for post {post_id} is suspicious. Triggering anomaly detection.")
+            check_for_anomalies(post_id)
 
     def post(self, request):
         serializer = RatingSerializer(data=request.data)
         if serializer.is_valid():
             user = request.user
             post = get_object_or_404(Post, id=request.data.get('post'))
+
             if not (0 <= request.data.get('score', -1) <= 5):
                 return Response({'error': 'Score must be between 0 and 5'}, status=status.HTTP_400_BAD_REQUEST)
-            rating, created = Rating.objects.update_or_create(
-                user=user,
-                post=post,
-                defaults={'score': request.data.get('score')}
-            )
+
+            self.add_rating_to_buffer(post.id, user.id, request.data.get('score'))
 
             send_rating_event(post.id, request.data.get('score'), user.id)
 
-            update_average_rating(post.id)
-
-            return Response({'message': 'Rating saved successfully'}, status=status.HTTP_200_OK)
+            return Response({'message': 'Rating buffered successfully'}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 class RegisterView(APIView):
     def post(self, request):

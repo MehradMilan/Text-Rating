@@ -1,6 +1,7 @@
 from kafka import KafkaConsumer
 import json
 from django.core.cache import cache
+import time
 
 consumer = KafkaConsumer(
     'ratings',
@@ -10,26 +11,20 @@ consumer = KafkaConsumer(
     value_deserializer=lambda x: json.loads(x.decode('utf-8'))
 )
 
-def process_rating_event():
+def store_rating_in_buffer(post_id, score, user_id):
     redis_client = cache.client.get_client()
+    current_time = time.time()
+    rating_data = json.dumps({"user_id": user_id, "score": score, "timestamp": current_time})
+
+    redis_client.zadd(f'post:{post_id}:rating_buffer', {rating_data: current_time})
+    print(f"Stored rating in buffer: Post {post_id}, Score {score}, User {user_id}")
+
+def process_rating_event():
     for message in consumer:
         event = message.value
         post_id = event['post_id']
         score = event['score']
+        user_id = event['user_id']
 
-        print(f"Processing event: {event}")
-
-        total_ratings_key = f'post:{post_id}:total_ratings'
-        total_ratings = redis_client.get(total_ratings_key) or 0
-        total_ratings = int(total_ratings) + 1
-        redis_client.set(total_ratings_key, total_ratings, ex=3600)
-
-        total_score_key = f'post:{post_id}:total_score'
-        total_score = redis_client.get(total_score_key) or 0
-        total_score = int(total_score) + score
-        redis_client.set(total_score_key, total_score, ex=3600)
-
-        average_rating = total_score / total_ratings
-        redis_client.set(f'post:{post_id}:avg_rating', average_rating, ex=3600)
-
-        redis_client.zincrby('most_rated_posts', 1, f'post:{post_id}')
+        print(f"Processing Kafka event: {event}")
+        store_rating_in_buffer(post_id, score, user_id)

@@ -35,3 +35,6 @@ rayanesh*.json
 /venv/
 
 db*
+
+# Ignore executable files
+celerybeat-schedule
