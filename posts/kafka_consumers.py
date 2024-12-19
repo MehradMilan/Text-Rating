@@ -17,7 +17,6 @@ def store_rating_in_buffer(post_id, score, user_id):
     rating_data = json.dumps({"user_id": user_id, "score": score, "timestamp": current_time})
 
     redis_client.zadd(f'post:{post_id}:rating_buffer', {rating_data: current_time})
-    print(f"Stored rating in buffer: Post {post_id}, Score {score}, User {user_id}")
 
 def process_rating_event():
     for message in consumer:
@@ -26,5 +25,4 @@ def process_rating_event():
         score = event['score']
         user_id = event['user_id']
 
-        print(f"Processing Kafka event: {event}")
         store_rating_in_buffer(post_id, score, user_id)

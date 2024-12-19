@@ -30,4 +30,3 @@ def process_expired_ratings():
         redis_client.set(f'post:{post_id}:avg_rating', average_rating, ex=3600)
 
         redis_client.zremrangebyscore(key, '-inf', five_minutes_ago)
-        print(f"Applied ratings for post {post_id} and updated average to {average_rating}")

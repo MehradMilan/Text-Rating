@@ -1,0 +1,87 @@
+services:
+  django:
+    build: .
+    container_name: django_app
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=1
+      - DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1
+      - DATABASE_URL=postgres
+      - REDIS_URL=localhost
+      - KAFKA_BROKER=kafka:9092
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    command: >
+      ./wait-for-it.sh kafka:9092 --timeout=60 --strict -- 
+      sh -c   "python manage.py makemigrations && 
+              python manage.py migrate && 
+              python manage.py runserver 0.0.0.0:8000"
+
+  celery:
+    build: .
+    container_name: celery_worker
+    command: >
+      ./wait-for-it.sh kafka:9092 --timeout=60 --strict -- 
+      celery -A rateapp worker -l info
+    environment:
+      - REDIS_URL=localhost
+    depends_on:
+      - django
+      - redis
+      - kafka
+
+  postgres:
+    image: postgres:14
+    container_name: postgres_db
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+
+  redis:
+    image: redis:latest
+    container_name: redis_cache
+    ports:
+      - "6379:6379"
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka_broker
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_MAX_REQUEST_SIZE: 20971520
+      KAFKA_MESSAGE_MAX_BYTES: 20971520
+    depends_on:
+      - zookeeper
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+volumes:
+  postgres_data:

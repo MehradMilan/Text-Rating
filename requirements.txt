@@ -1,0 +1,12 @@
+kafka-python
+redis
+scikit-learn
+requests
+psycopg2-binary
+django
+celery[redis]
+djangorestframework
+django-redis
+django-prometheus
+djangorestframework-simplejwt
+django-celery-beat

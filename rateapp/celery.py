@@ -1,9 +1,10 @@
 from celery import Celery
+import os
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'rateapp.settings')
 
 app = Celery('rateapp')
-app.conf.beat_schedule = {
-    'process-expired-ratings-every-1-minute': {
-        'task': 'posts.tasks.process_expired_ratings',
-        'schedule': 60.0,
-    },
-}
+app.config_from_object('django.conf:settings', namespace='CELERY')
+app.autodiscover_tasks()
+
+app.conf.broker_url = 'redis://redis:6379/0'

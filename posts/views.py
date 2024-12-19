@@ -13,6 +13,9 @@ from .kafka_producers import send_rating_event
 import json
 import time
 
+ANOMALY_THRESHOLD = 0.6
+SUSPICIOUS_BUFFER_SIZE = 50
+
 class PostList(ListAPIView):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
@@ -48,12 +51,11 @@ def check_for_anomalies(post_id):
 
     total_ratings = len(scores)
     for score, count in score_count.items():
-        if count / total_ratings > 0.6:
+        if count / total_ratings > ANOMALY_THRESHOLD:
             print(f"Anomaly detected: {count}/{total_ratings} ratings are {score}. Clearing buffer.")
             redis_client.delete(f'post:{post_id}:rating_buffer')
             return
 
-    print(f"No anomaly detected for post {post_id}.")
 
 class RatingView(APIView):
     permission_classes = [IsAuthenticated]
@@ -68,10 +70,9 @@ class RatingView(APIView):
         })
 
         redis_client.zadd(f'post:{post_id}:rating_buffer', {rating_data: current_time})
-        print(f"Rating added to buffer: Post {post_id}, User {user_id}, Score {score}")
 
         buffer_size = redis_client.zcard(f'post:{post_id}:rating_buffer')
-        if buffer_size > 50:
+        if buffer_size > SUSPICIOUS_BUFFER_SIZE:
             print(f"Buffer for post {post_id} is suspicious. Triggering anomaly detection.")
             check_for_anomalies(post_id)
 
