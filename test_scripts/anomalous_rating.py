@@ -4,9 +4,9 @@ REGISTER_API_URL = "http://localhost:8000/api/register/"
 LOGIN_API_URL = "http://localhost:8000/api/login/"
 RATING_API_URL = "http://localhost:8000/api/ratings/"
 
-POST_ID = 1
-USER_COUNT = 20
-ANOMALOUS_SCORE = 1
+POST_ID = 10
+USER_COUNT = 70
+ANOMALOUS_SCORE = 5
 
 def register_users(user_count):
     print("\n--- Registering Users ---")

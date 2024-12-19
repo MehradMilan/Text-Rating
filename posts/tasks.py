@@ -7,12 +7,13 @@ import json
 def process_expired_ratings():
     redis_client = cache.client.get_client()
     current_time = time.time()
-    five_minutes_ago = current_time - 300
+    two_minutes_ago = current_time - 120
 
     for key in redis_client.keys("post:*:rating_buffer"):
         post_id = key.split(':')[1]
 
-        expired_ratings = redis_client.zrangebyscore(key, '-inf', five_minutes_ago)
+        expired_ratings = redis_client.zrangebyscore(key, '-inf', two_minutes_ago)
+        print(expired_ratings)
         if not expired_ratings:
             continue
 
@@ -29,4 +30,4 @@ def process_expired_ratings():
         average_rating = total_score / total_ratings
         redis_client.set(f'post:{post_id}:avg_rating', average_rating, ex=3600)
 
-        redis_client.zremrangebyscore(key, '-inf', five_minutes_ago)
+        redis_client.zremrangebyscore(key, '-inf', two_minutes_ago)

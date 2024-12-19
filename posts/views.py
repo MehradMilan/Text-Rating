@@ -32,11 +32,6 @@ class PostList(ListAPIView):
     
     def get_serializer_context(self):
         return {'request': self.request}
-    
-def update_average_rating(post_id):
-    ratings = Rating.objects.filter(post_id=post_id)
-    average_rating = ratings.aggregate(Avg('score'))['score__avg'] if ratings.exists() else 0
-    cache.set(f'post:{post_id}:avg_rating', average_rating, timeout=3600)
 
 def check_for_anomalies(post_id):
     redis_client = cache.client.get_client()
@@ -115,3 +110,13 @@ class AnalyticsView(APIView):
             'most_rated': most_rated,
             'top_rated': top_rated
         })
+    
+class CreatePostView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = PostSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'message': 'Post created successfully', 'data': serializer.data}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
