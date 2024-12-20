@@ -126,13 +126,19 @@ Kafka serves as the backbone for handling real-time events in the system:
 
 ### **Starting the Project**
 
-1. Build and run the Docker containers:
+1. Add static files to the directory:
+
+    ```bash
+    python manage.py collectstatic
+    ```
+
+2. Build and run the Docker containers:
 
    ```bash
    docker-compose up --build
    ```
 
-2. Access the application at `http://localhost:8080`.
+3. Access the application at `http://localhost:8080`.
 
 
 ## **5. Features**
