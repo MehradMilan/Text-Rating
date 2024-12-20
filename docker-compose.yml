@@ -35,6 +35,20 @@ services:
       - redis
       - kafka
 
+  celery-beat:
+    build: .
+    container_name: beater
+    command: >
+      sh -c "./wait-for-it.sh postgres:5432 -- python manage.py migrate &&
+           celery -A rateapp beat --loglevel=debug --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - DJANGO_SETTINGS_MODULE=rateapp.settings
+    depends_on:
+      - redis
+      - django
+      - postgres
+
   postgres:
     image: postgres:14
     container_name: postgres_db

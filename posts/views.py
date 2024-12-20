@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Post, Rating
+from .models import Post, PostAverageRating, Rating
 from .serializers import PostSerializer, RatingSerializer, UserSerializer
 from django.shortcuts import get_object_or_404
 from django.core.cache import cache
@@ -77,9 +77,18 @@ class RatingView(APIView):
             user = request.user
             post = get_object_or_404(Post, id=request.data.get('post'))
 
-            if not (0 <= request.data.get('score', -1) <= 5):
+            score = request.data.get('score', -1)
+            if not (0 <= score <= 5):
                 return Response({'error': 'Score must be between 0 and 5'}, status=status.HTTP_400_BAD_REQUEST)
 
+            rating, created = Rating.objects.get_or_create(
+                user=user, post=post, defaults={'score': score}
+            )
+            
+            if not created:
+                rating.score = score
+                rating.save()
+            
             self.add_rating_to_buffer(post.id, user.id, request.data.get('score'))
 
             send_rating_event(post.id, request.data.get('score'), user.id)
@@ -117,6 +126,7 @@ class CreatePostView(APIView):
     def post(self, request):
         serializer = PostSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            post = serializer.save()
+            PostAverageRating.objects.create(post=post)
             return Response({'message': 'Post created successfully', 'data': serializer.data}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Post, Rating
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from .models import PostAverageRating
 
 class RatingSerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,15 +18,10 @@ class PostSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'content', 'average_rating', 'user_rating']
 
     def get_average_rating(self, obj):
-        cached_rating = cache.get(f'post:{obj.id}:avg_rating')
-        if cached_rating is not None:
-            return cached_rating
-
-        ratings = obj.ratings.all()
-        average_rating = sum(rating.score for rating in ratings) / ratings.count() if ratings.exists() else 0
-
-        cache.set(f'post:{obj.id}:avg_rating', average_rating, timeout=3600)
-        return average_rating
+        try:
+            return obj.average_rating_entry.average_rating
+        except PostAverageRating.DoesNotExist:
+            return 0.0
 
     def get_user_rating(self, obj):
         request = self.context.get('request')
