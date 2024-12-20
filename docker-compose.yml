@@ -3,6 +3,7 @@ services:
     build: .
     volumes:
       - .:/app
+      - static_volume:/app/staticfiles 
     ports:
       - "8000"
     environment:
@@ -32,6 +33,7 @@ services:
       - "8080:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - static_volume:/app/staticfiles 
     depends_on:
       - django
 
@@ -112,3 +114,4 @@ services:
 
 volumes:
   postgres_data:
+  static_volume:

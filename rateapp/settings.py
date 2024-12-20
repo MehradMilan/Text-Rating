@@ -41,7 +41,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_prometheus',
     'posts',
-    'django_celery_beat'
+    'django_celery_beat',
+    'drf_yasg'
 ]
 
 MIDDLEWARE = [
@@ -126,12 +127,19 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGIN_URL = '/accounts/login/'
+
+SWAGGER_SETTINGS = {
+   'USE_SESSION_AUTH': False
+}
 
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
@@ -159,8 +167,5 @@ KAFKA_BROKER = os.getenv('KAFKA_BROKER', 'kafka:9092')
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
 
-# Celery settings
-# CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Redis as broker
-# CELERY_RESULT_BACKEND = 'redis'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'

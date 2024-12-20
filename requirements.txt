@@ -10,3 +10,4 @@ django-redis
 django-prometheus
 djangorestframework-simplejwt
 django-celery-beat
+drf-yasg
